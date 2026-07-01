@@ -103,7 +103,7 @@ jobs:
 
     - name: Crear partitions-4MiBplus.csv personalizado
       run: |
-        cat > $GITHUB_WORKSPACE/micropython/ports/esp32/boards/partitions-4MiBplus.csv << 'EOF'
+        cat > $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-4MiBplus.csv << 'EOF'
         # Name,   Type, SubType, Offset,  Size, Flags
         nvs,      data, nvs,     0x9000,  0x6000,
         phy_init, data, phy,     0xf000,  0x1000,
@@ -114,7 +114,7 @@ jobs:
     - name: Debug partition table
       run: |
         echo "===== partitions-4MiBplus.csv ====="
-        cat $GITHUB_WORKSPACE/micropython/ports/esp32/boards/partitions-4MiBplus.csv
+        cat $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-4MiBplus.csv
         
     - name: Compile MicroPython with S3LCD + SmartConfig
       run: |
