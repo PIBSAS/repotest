@@ -15,8 +15,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      IDF_CCACHE_ENABLE: 1
     steps:
     - name: Clonar el repositorio
       uses: actions/checkout@v7
@@ -37,31 +35,15 @@ jobs:
     - name: Instalar dependencias
       run: |
        sudo apt update
-       sudo apt-get install -y git wget cmake ninja-build ccache
+       sudo apt-get install -y git wget cmake ninja-build
        pip3 install --upgrade pip
 
-    - name: Cache ESP-IDF and environment
-      id: cache-esp
-      uses: actions/cache@v5
-      with:
-        path: |
-          esp-idf
-          ~/.espressif
-        key: esp-full-${{ runner.os }}-${{ steps.idf_ver.outputs.IDF_VER }}
-        restore-keys: |
-          esp-full-${{ runner.os }}-${{ steps.idf_ver.outputs.IDF_VER }}-
-  
     - name: Setup ESP-IDF
       run: |
-        if [ ! -d "esp-idf" ]; then
-          git clone --depth 1 --branch ${{ steps.idf_ver.outputs.IDF_VER }} https://github.com/espressif/esp-idf.git
-          git -C esp-idf submodule update --init --recursive --depth=1
-        fi
-        
-        if [ ! -d "$HOME/.espressif/python_env" ]; then
-          echo "Instalando entorno virtual de ESP-IDF..."
-          ./esp-idf/install.sh
-        fi
+        git clone --depth 1 --branch ${{ steps.idf_ver.outputs.IDF_VER }} https://github.com/espressif/esp-idf.git
+        git -C esp-idf submodule update --init --recursive --depth=1
+        echo "Instalando entorno virtual de ESP-IDF..."
+        ./esp-idf/install.sh
    
     - name: Set up environment
       run: |
@@ -88,9 +70,9 @@ jobs:
     - name: Create git tag with version
       run: |
         cd micropython
-        git tag "v$MPY_VERSION"
-        echo "Tag creado: v$MPY_VERSION"
-        git tag -l | grep "v$MPY_VERSION"
+        git tag "v${{ env.MPY_VERSION }}"
+        echo "Tag creado: v${{ env.MPY_VERSION }}"
+        git tag -l | grep "v${{ env.MPY_VERSION }}"
     
     - name: Compilar MicroPython
       run: |
@@ -103,10 +85,11 @@ jobs:
     - name: Mover binarios
       run: |
         mkdir -p ./artifacts
-        cp micropython/ports/esp32/build-ESP32_GENERIC_S3-SPIRAM_OCT/firmware.bin artifacts/
-        cp micropython/ports/esp32/build-ESP32_GENERIC_S3-SPIRAM_OCT/micropython.bin ./artifacts/
-        cp micropython/ports/esp32/build-ESP32_GENERIC_S3-SPIRAM_OCT/bootloader/bootloader.bin ./artifacts/
-        cp micropython/ports/esp32/build-ESP32_GENERIC_S3-SPIRAM_OCT/partition_table/partition-table.bin ./artifacts/
+        BUILD="micropython/ports/esp32/build-ESP32_GENERIC_S3-SPIRAM_OCT"
+        cp $BUILD/firmware.bin artifacts/
+        cp $BUILD/micropython.bin ./artifacts/
+        cp $BUILD/bootloader/bootloader.bin ./artifacts/
+        cp $BUILD/partition_table/partition-table.bin ./artifacts/
         
     - name: Generate Tag
       id: tag
@@ -116,14 +99,17 @@ jobs:
       run: |
         if [ ! -f ./artifacts/firmware.bin ] || [ ! -f ./artifacts/micropython.bin ] || [ ! -f ./artifacts/bootloader.bin ] || [ ! -f ./artifacts/partition-table.bin ]; then
           echo "Falta uno o más archivos binarios necesarios, cancelando release."
+          ls -la ./artifacts/
           exit 1
         fi
+        echo "Los binarios existen!"
+        ls -la ./artifacts/
       
     - name: GH Release
       uses: softprops/action-gh-release@v3
       with:
-        tag_name: $TAG_NAME
-        name: "MicroPython for ESP32 S3 N16R8 Release version $MPY_VERSION (Build $TAG_NAME)"
+        tag_name: ${{ env.TAG_NAME }}
+        name: "MicroPython for ESP32 S3 N16R8 Octal SPI Variant Release version ${{ env.MPY_VERSION }} (Build ${{ env.TAG_NAME }})"
         body: |
           Automated release for MicroPython.
           - What we get here:
@@ -139,46 +125,57 @@ jobs:
           
           ## Windows or Linux:
           Create Virtual Environment
-          ```bash
+          
+          ```python
           python -m venv esp-env
           ```
           
           ### On Windows activate Virtual Environment this way:
-          ```bash
+          
+          ```powershell
           .\esp-env\Scripts\activate
           ```
+          
           ### On Linux activate Virtual Environment this way:
+          
           ```bash
           source esp-env/bin/activate
           ```
           
           ### On Windows or Linux install esptool:
-          ```bash
+          
+          ```python
           pip install esptool
           ```
           
           ### Put ESP32 S3 N16R8 in BOOTLOADER MODE:
           - With USB cable on USB COM Port, press BOOT button then RST button, release RST, then release BOOT button. Or unplug, press BOOT button meanwhile you plug in the usb cable to PC or SBC like a Raspberry Pi.
           - Alternative: Use Thonny IDE, plug your ESP32-S3, on Thonny Shell type:
-          ```bash
+          
+          ```python
           from machine import bootloader
           ```
+          
           Press ``Enter`` then type:
-          ```bash
+          
+          ```python
           bootloader()
           ```
+          
           Press ``Enter`` then just cose Thonny and go to Terminal with Virtual Environment activate.
           
           ### Erase Flash:
-          ```bash
+          
+          ```python
           python -m esptool erase-flash
           ```
           
           #### Then Flash:
+          
           - Put 3 binaries in the same folder you are executing the steps, example Downloads folder, you need to be in that folder where are the binaries.
           Yes no big commands, `esptool` recognize `--chip, --port`, give a secure --baudrate` and Micropython detect flash size on first boot.
           
-          ```bash
+          ```python
           python -m esptool write-flash 0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 micropython.bin
           ```
 
@@ -197,9 +194,10 @@ jobs:
           
           - Then open a Terminal like Administrator and type:
           
-          ````bash
+          ```powershell
           Set-ExecutionPolicy Unrestricted
-          ````
+          ```
+          
           - Close the Terminal now you can activate the Python Virtual Enmvironment
           
         draft: false
