@@ -101,18 +101,16 @@ jobs:
       run: |
         cp "$GITHUB_WORKSPACE/ESP32_GENERIC_S3_N16R8/partitions-16MiB.csv" "$GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiB.csv"
 
-    - name: Create custom partition table (LVGL style)
+    - name: Crear partitions-4MiBplus.csv personalizado
       run: |
-        cat > $GITHUB_WORKSPACE/micropython/ports/esp32/boards/partitions-huge.csv << 'EOF'
-        # Notes: the offset of the partition table itself is set in
-        # $IDF_PATH/components/partition_table/Kconfig.projbuild.
+        cat > $GITHUB_WORKSPACE/micropython/ports/esp32/boards/partitions-4MiBplus.csv << 'EOF'
         # Name,   Type, SubType, Offset,  Size, Flags
         nvs,      data, nvs,     0x9000,  0x6000,
         phy_init, data, phy,     0xf000,  0x1000,
         factory,  app,  factory, 0x10000, 0x300000,
         vfs,      data, fat,     0x310000, 0xCF0000,
         EOF
-
+    
     - name: Compile MicroPython with S3LCD + SmartConfig
       run: |
         source esp-idf/export.sh
@@ -127,8 +125,6 @@ jobs:
         make -j$(nproc) BOARD=ESP32_GENERIC_S3 BOARD_VARIANT=SPIRAM_OCT \
           USER_C_MODULES="$GITHUB_WORKSPACE/micropython.cmake" \
           FROZEN_MANIFEST="$GITHUB_WORKSPACE/s3lcd/manifest.py" \
-          PARTITION_CSV_PATH="$GITHUB_WORKSPACE/micropython/ports/esp32/partitions-huge.csv"
-        grep CSV build-ESP32_GENERIC_S3-SPIRAM_OCT/CMakeCache.txt
 
     - name: Move binaries with S3LCD + SmartConfig
       run: |
