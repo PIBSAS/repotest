@@ -103,7 +103,7 @@ jobs:
 
     - name: Create custom "Huge APP" partition table (No OTA)
       run: |
-        cat > $GITHUB_WORKSPACE/partitions-huge.csv << 'EOF'
+        cat > $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-huge.csv << 'EOF'
         # Name,   Type, SubType, Offset,  Size, Flags
         nvs,      data, nvs,     0x9000,  0x5000,
         app0,     app,  factory, 0x10000, 0x3F0000,
