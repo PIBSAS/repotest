@@ -142,7 +142,7 @@ jobs:
       - name: Prepare artifacts for release, moving
         run: |
           mkdir -p artifacts
-          BUILE="micropython/ports/esp32/build-ESP32_GENERIC_C3"
+          BUILD="micropython/ports/esp32/build-ESP32_GENERIC_C3"
           cp $BUILD/firmware.bin artifacts/
           cp $BUILD/micropython.bin artifacts/
           cp $BUILD/bootloader/bootloader.bin artifacts/
