@@ -45,7 +45,7 @@ jobs:
       run: |
         sed -i 's/mp_raise_ValueError(\(.*\));/mp_raise_ValueError(MP_ERROR_TEXT(\1));/' $GITHUB_WORKSPACE/s3lcd/src/s3lcd_i80_bus.c
 
-    - name: Copy tdt_config and config_buttons and fonts
+    - name: Copy tdt_config and tft__buttons
       run: |
        cp "$GITHUB_WORKSPACE/s3lcd/examples/configs/t-display-s3/tft_config.py" "$GITHUB_WORKSPACE/s3lcd/modules/"
        cp "$GITHUB_WORKSPACE/s3lcd/examples/configs/t-display-s3/tft_buttons.py" "$GITHUB_WORKSPACE/s3lcd/modules/"
@@ -106,19 +106,16 @@ jobs:
         source esp-idf/export.sh
         cd ${{ github.workspace }}/micropython
         make -j$(nproc) -C mpy-cross
-        export IDF_TARGET=esp32s3
+        make -j$(nproc) -C ports/esp32 submodules
         cd ports/esp32/
-        idf.py \
-          -D MICROPY_BOARD=ESP32_GENERIC_S3 \
-          -D MICROPY_BOARD_DIR="$GITHUB_WORKSPACE/micropython/ports/esp32/boards/ESP32_GENERIC_S3_N16R8" \
-          -D USER_C_MODULES="$GITHUB_WORKSPACE/micropython.cmake" \
-          -D MICROPY_FROZEN_MANIFEST="$GITHUB_WORKSPACE/s3lcd/manifest.py" \
-          -B build-ESP32_GENERIC_S3 build
+        make -j$(nproc) BOARD=ESP32_GENERIC_S3 BOARD_VARIANT=SPIRAM_OCT \
+          USER_C_MODULES="$GITHUB_WORKSPACE/micropython.cmake" \
+          FROZEN_MANIFEST="$GITHUB_WORKSPACE/s3lcd/manifest.py"
 
     - name: Move binaries with S3LCD + SmartConfig
       run: |
         mkdir -p ./artifacts
-        BUILD="micropython/ports/esp32/build-ESP32_GENERIC_S3"
+        BUILD="micropython/ports/esp32/build-ESP32_GENERIC_S3-SPIRAM_OCT"
         CP $BUILD/firmware.bin artifacts/
         cp $BUILD/micropython.bin ./artifacts/micropython.bin || true
         cp $BUILD/bootloader/bootloader.bin ./artifacts/bootloader.bin || true
