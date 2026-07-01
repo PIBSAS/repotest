@@ -120,7 +120,7 @@ jobs:
         make -j$(nproc) BOARD=ESP32_GENERIC_S3 BOARD_VARIANT=SPIRAM_OCT \
           USER_C_MODULES="$GITHUB_WORKSPACE/micropython.cmake" \
           FROZEN_MANIFEST="$GITHUB_WORKSPACE/s3lcd/manifest.py" \
-          PARTITION_TABLE_CSV="$GITHUB_WORKSPACE/partitions-huge.csv"
+          PARTITION_TABLE_CSV="$GITHUB_WORKSPACE/micropython/ports/esp32/partitions-huge.csv"
 
     - name: Move binaries with S3LCD + SmartConfig
       run: |
