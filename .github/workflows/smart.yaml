@@ -103,13 +103,35 @@ jobs:
 
     - name: Create custom partition table
       run: |
-        cat > $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-huge.csv << 'EOF'
+        # 1. Crear la tabla personalizada en el directorio de la placa
+        cat > $GITHUB_WORKSPACE/micropython/ports/esp32/boards/ESP32_GENERIC_S3/partitions-huge.csv << 'EOF'
         # Name,   Type, SubType, Offset,  Size, Flags
-          nvs,      data, nvs,     0x9000,  0x6000,
-          phy_init, data, phy,     0xf000,  0x1000,
-          factory,  app,  factory, 0x10000, 0x300000,
-          EOF
+        nvs,      data, nvs,     0x9000,  0x5000,
+        app0,     app,  factory, 0x10000, 0x3F0000,
+        EOF
     
+    - name: Force custom partition table in SPIRAM_OCT variant
+      run: |
+        # 2. Modificar el archivo de la variante SPIRAM_OCT
+        cat > $GITHUB_WORKSPACE/micropython/ports/esp32/boards/ESP32_GENERIC_S3/mpconfigvariant_SPIRAM_OCT.cmake << 'EOF'
+        list(APPEND SDKCONFIG_DEFAULTS
+            boards/sdkconfig.240mhz
+            boards/sdkconfig.spiram_oct
+        )
+    
+        list(APPEND MICROPY_DEF_BOARD
+            MICROPY_HW_BOARD_NAME="Generic ESP32S3 module with Octal-SPIRAM"
+        )
+    
+        # FORZAR TABLA DE PARTICIONES PERSONALIZADA
+        set(PARTITION_TABLE_CSV "partitions-huge.csv")
+        set(PARTITION_CSV_PATH "${MICROPY_BOARD_DIR}/partitions-huge.csv")
+        EOF
+    
+        # 3. Verificar que se haya modificado correctamente
+        echo "mpconfigvariant_SPIRAM_OCT.cmake modificado:"
+        cat $GITHUB_WORKSPACE/micropython/ports/esp32/boards/ESP32_GENERIC_S3/mpconfigvariant_SPIRAM_OCT.cmake
+
     - name: Compile MicroPython with S3LCD + SmartConfig
       run: |
         source esp-idf/export.sh
