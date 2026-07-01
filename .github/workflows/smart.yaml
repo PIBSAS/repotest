@@ -134,7 +134,7 @@ jobs:
       run: |
         mkdir -p ./artifacts
         BUILD="micropython/ports/esp32/build-ESP32_GENERIC_S3-SPIRAM_OCT"
-        CP $BUILD/firmware.bin artifacts/
+        cp $BUILD/firmware.bin artifacts/
         cp $BUILD/micropython.bin ./artifacts/micropython.bin || true
         cp $BUILD/bootloader/bootloader.bin ./artifacts/bootloader.bin || true
         cp $BUILD/partition_table/partition-table.bin ./artifacts/partition-table.bin || true
