@@ -38,7 +38,7 @@ jobs:
       run: |
        sudo apt update
        sudo apt-get install -y git wget cmake ninja-build ccache
-       pip3 install --upgarade pip
+       pip3 install --upgrade pip
 
     - name: Cache ESP-IDF and environment
       id: cache-esp
