@@ -136,8 +136,8 @@ jobs:
       - name: Verify build artifacts
         run: |
           ls -lh micropython/ports/esp32/build-ESP32_GENERIC_C3/*.bin
-          ls -lh micropython/ports/esp32/buildESP32_GENERIC_C3/bootloader/*.bin
-          ls -lh micropython/ports/esp32/build-EESP32_GENERIC_C3/partition_table/*.bin
+          ls -lh micropython/ports/esp32/build-ESP32_GENERIC_C3/bootloader/*.bin
+          ls -lh micropython/ports/esp32/build-ESP32_GENERIC_C3/partition_table/*.bin
           
       - name: Prepare artifacts for release, moving
         run: |
