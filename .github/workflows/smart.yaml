@@ -101,6 +101,15 @@ jobs:
       run: |
         cp "$GITHUB_WORKSPACE/ESP32_GENERIC_S3_N16R8/partitions-16MiB.csv" "$GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiB.csv"
 
+    - name: Create custom "Huge APP" partition table (No OTA)
+      run: |
+        cat > $GITHUB_WORKSPACE/partitions-huge.csv << 'EOF'
+        # Name,   Type, SubType, Offset,  Size, Flags
+        nvs,      data, nvs,     0x9000,  0x5000,
+        app0,     app,  factory,   0x10000, 0x3F0000,
+        vfs,   data, spiffs,  0x400000,0x100000,
+        EOF
+    
     - name: Compile MicroPython with S3LCD + SmartConfig
       run: |
         source esp-idf/export.sh
@@ -110,7 +119,8 @@ jobs:
         cd ports/esp32/
         make -j$(nproc) BOARD=ESP32_GENERIC_S3 BOARD_VARIANT=SPIRAM_OCT \
           USER_C_MODULES="$GITHUB_WORKSPACE/micropython.cmake" \
-          FROZEN_MANIFEST="$GITHUB_WORKSPACE/s3lcd/manifest.py"
+          FROZEN_MANIFEST="$GITHUB_WORKSPACE/s3lcd/manifest.py" \
+          PARTITION_TABLE_CSV="$GITHUB_WORKSPACE/partitions-huge.csv"
 
     - name: Move binaries with S3LCD + SmartConfig
       run: |
