@@ -105,9 +105,10 @@ jobs:
       run: |
         cat > $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-huge.csv << 'EOF'
         # Name,   Type, SubType, Offset,  Size, Flags
-        nvs,      data, nvs,     0x9000,  0x5000,
-        app0,     app,  factory, 0x10000, 0x3F0000,
-        EOF
+          nvs,      data, nvs,     0x9000,  0x6000,
+          phy_init, data, phy,     0xf000,  0x1000,
+          factory,  app,  factory, 0x10000, 0x300000,
+          EOF
     
     - name: Compile MicroPython with S3LCD + SmartConfig
       run: |
