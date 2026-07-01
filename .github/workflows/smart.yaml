@@ -110,7 +110,12 @@ jobs:
         factory,  app,  factory, 0x10000, 0x300000,
         vfs,      data, fat,     0x310000, 0xCF0000,
         EOF
-    
+
+    - name: Debug partition table
+      run: |
+        echo "===== partitions-4MiBplus.csv ====="
+        cat $GITHUB_WORKSPACE/micropython/ports/esp32/boards/partitions-4MiBplus.csv
+        
     - name: Compile MicroPython with S3LCD + SmartConfig
       run: |
         source esp-idf/export.sh
