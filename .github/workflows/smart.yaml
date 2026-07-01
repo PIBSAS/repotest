@@ -1,0 +1,233 @@
+name: T-Display-S3 with SmartConfig + S3LCD Driver
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+     - 'v*'
+  schedule:
+     - cron: '0 0 1 * *'
+  
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Clone this repo
+      uses: actions/checkout@v7
+      
+    - name: Clone Micropython now with smartconfig thanks to Walkline80
+      run: git clone --depth 1 --recursive https://github.com/micropython/micropython.git
+
+    - name: Install yq
+      run: sudo apt-get update && sudo apt-get install -y yq
+
+    - id: idf_ver
+      name: Extract IDF version from MicroPython workflow
+      run: |
+        cd micropython
+        IDF_VER=$(yq '.env.IDF_NEWEST_VER' .github/workflows/ports_esp32.yml | tr -d '"')
+        echo "IDF_VER=$IDF_VER" >> $GITHUB_OUTPUT
+        
+    - name: Clone repo smartconfig by Walkline80
+      run: git clone https://gitee.com/walkline/micropython-smartconfig-cmodule.git smartconfig
+    
+    - name: Clonar s3lcd
+      run: git clone https://github.com/russhughes/s3lcd.git
+
+    - name: Parchear s3lcd.c para ESP-IDF >=v5.4.2
+      run: sed -i 's/self->bus_handle.spi = NULL;/self->bus_handle.spi = 0;/' $GITHUB_WORKSPACE/s3lcd/src/s3lcd.c
+
+    - name: Aplicar parche para errores de mp_raise_ValueError
+      run: |
+        sed -i 's/mp_raise_ValueError(\(.*\));/mp_raise_ValueError(MP_ERROR_TEXT(\1));/' $GITHUB_WORKSPACE/s3lcd/src/s3lcd_i80_bus.c
+
+    - name: Copy tdt_config and config_buttons and fonts
+      run: |
+       cp "$GITHUB_WORKSPACE/s3lcd/examples/configs/t-display-s3/tft_config.py" "$GITHUB_WORKSPACE/s3lcd/modules/"
+       cp "$GITHUB_WORKSPACE/s3lcd/examples/configs/t-display-s3/tft_buttons.py" "$GITHUB_WORKSPACE/s3lcd/modules/"
+      
+    - name: Install dependencies
+      run: |
+       sudo apt-get update
+       sudo apt-get install -y git wget cmake ninja-build libffi-dev libssl-dev dfu-util libusb-1.0-0
+  
+    - name: Setup ESP-IDF
+      run: |
+        git clone --depth 1 --branch ${{ steps.idf_ver.outputs.IDF_VER }} https://github.com/espressif/esp-idf.git
+        git -C esp-idf submodule update --init --recursive --depth=1
+        echo "Instalando entorno virtual de ESP-IDF..."
+        ./esp-idf/install.sh
+   
+    - name: Set up environment
+      run: |
+        source esp-idf/export.sh
+        echo "IDF_PATH=$GITHUB_WORKSPACE/esp-idf" >> $GITHUB_ENV
+        idf.py --version
+
+    - name: Get MicroPython Version from mpconfig.h
+      run: |
+        cd micropython/
+        MAJOR=$(grep -oP '(?<=#define MICROPY_VERSION_MAJOR )[0-9]+' py/mpconfig.h)
+        MINOR=$(grep -oP '(?<=#define MICROPY_VERSION_MINOR )[0-9]+' py/mpconfig.h)
+        MICRO=$(grep -oP '(?<=#define MICROPY_VERSION_MICRO )[0-9]+' py/mpconfig.h)
+        PRERELEASE=$(grep -oP '(?<=#define MICROPY_VERSION_PRERELEASE )[0-9]+' py/mpconfig.h)
+
+        if [ "$PRERELEASE" -eq 1 ]; then
+          MPY_VERSION="$MAJOR.$MINOR.$MICRO-preview"
+        else
+          MPY_VERSION="$MAJOR.$MINOR.$MICRO"
+        fi
+
+        echo "MPY_VERSION=$MPY_VERSION" >> $GITHUB_ENV
+
+    - name: Create git tag with version
+      run: |
+        cd micropython
+        git tag "v${{ env.MPY_VERSION }}"
+        echo "Tag creado: v${{ env.MPY_VERSION }}"
+        git tag -l | grep "v${{ env.MPY_VERSION }}"
+    
+    - name: Copy board configuration
+      if: false
+      run: |
+        cp -r ESP32_GENERIC_S3_N16R8 micropython/ports/esp32/boards/
+
+    - name: Copiar tabla de particiones personalizada
+      if: false
+      run: |
+        cp "$GITHUB_WORKSPACE/ESP32_GENERIC_S3_N16R8/partitions-16MiB.csv" "$GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiB.csv"
+
+    - name: Compile MicroPython with S3LCD + SmartConfig
+      run: |
+        source esp-idf/export.sh
+        cd ${{ github.workspace }}/micropython
+        make -j$(nproc) -C mpy-cross
+        export IDF_TARGET=esp32s3
+        cd ports/esp32/
+        idf.py \
+          -D MICROPY_BOARD=ESP32_GENERIC_S3 \
+          -D MICROPY_BOARD_DIR="$GITHUB_WORKSPACE/micropython/ports/esp32/boards/ESP32_GENERIC_S3_N16R8" \
+          -D USER_C_MODULES="$GITHUB_WORKSPACE/micropython.cmake" \
+          -D MICROPY_FROZEN_MANIFEST="$GITHUB_WORKSPACE/s3lcd/manifest.py" \
+          -B build-ESP32_GENERIC_S3 build
+
+    - name: Move binaries with S3LCD + SmartConfig
+      run: |
+        mkdir -p ./artifacts
+        BUILD="micropython/ports/esp32/build-ESP32_GENERIC_S3"
+        CP $BUILD/firmware.bin artifacts/
+        cp $BUILD/micropython.bin ./artifacts/micropython.bin || true
+        cp $BUILD/bootloader/bootloader.bin ./artifacts/bootloader.bin || true
+        cp $BUILD/partition_table/partition-table.bin ./artifacts/partition-table.bin || true
+    
+    - name: Generate Tag
+      id: tag
+      run: echo "TAG_NAME=release-$(date +'%Y%m%d-%H%M')" >> $GITHUB_ENV
+
+    - name: Verificar existencia de los tres binarios
+      run: |
+        if [ ! -f ./artifacts/firmware.bin ] || [ ! -f ./artifacts/micropython.bin ] || [ ! -f ./artifacts/bootloader.bin ] || [ ! -f ./artifacts/partition-table.bin ]; then
+          echo "Falta uno o más archivos binarios necesarios, cancelando release."
+          exit 1
+        fi
+
+    - name: GH Release
+      uses: softprops/action-gh-release@v3
+      with:
+        tag_name: ${{ env.TAG_NAME }}
+        name: "MicroPython for LilyGo T-Display S3 with S3LCD Driver and SmartConfig by Walkline80 release version ${{ env.MPY_VERSION }} (Build ${{ env.TAG_NAME }})"
+        body: |
+          Automated release for MicroPython.
+          
+          ## What we get here:
+          - MicroPython with S3LCD Display Driver and SmartConfig module:
+            - ```micropython.bin, bootloader.bin and partition-table.bin.```
+          # Instructions
+            You need to have some dependencies pre-instaled in your OS:
+            - Python 3
+            - Pip
+            - Python VENV
+          
+          ## Windows or Linux:
+          Create Virtual Environment
+          ```bash
+          python -m venv esp-env
+          ```
+          
+          ### On Windows activate Virtual Environment this way:
+          ```bash
+          .\esp-env\Scripts\activate
+          ```
+          ### On Linux activate Virtual Environment this way:
+          ```bash
+          source esp-env/bin/activate
+          ```
+          
+          ### On Windows or Linux install esptool:
+          ```bash
+          pip install esptool
+          ```
+          
+          ### Put T-Display-S3 in BOOTLOADER MODE:
+          - With USB cable on USB COM Port, press BOOT button then RST button, release RST, then release BOOT button. Or unplug, press BOOT button meanwhile you plug in the usb cable to PC or SBC like a Raspberry Pi.
+          - Alternative: Use Thonny IDE, plug your T-Display-S3, on Thonny Shell type:
+          ```bash
+          from machine import bootloader
+          ```
+          Press ``Enter`` then type:
+          ```bash
+          bootloader()
+          ```
+          Press ``Enter`` then just cose Thonny and go to Terminal with Virtual Environment activate.
+          
+          ### Erase Flash:
+          ```bash
+          python -m esptool --chip esp32s3 erase-flash
+          ```
+          ### Then Flash:
+          - Put 3 binaries in the same folder you are executing the steps, example Downloads folder, you need to be in that folder where are the binaries.
+          ```bash
+          python -m esptool --chip esp32s3 -b 460800 --before default-reset --after no-reset write-flash --flash-mode dio --flash-size 16MB --flash-freq 80m 0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 micropython.bin
+          ```
+
+          ### You can check from MicroPython Shell on Thonny with:
+          ```bash
+          help('modules')
+          ```
+          The modules in MicroPython.
+                    
+          ### NOTE IN WINDOWS:
+          - If you get a PowerShell Scripts Policy Execution Exception that don't let you activate the Virtual Environment:
+          
+           ````bash
+          .\esp-env\Scripts\activate
+          ````
+          
+          - Then open a Terminal like Administrator and type:
+          
+          ````bash
+          Set-ExecutionPolicy Unrestricted
+          ````
+          - Close the Terminal now you can activate the Python Virtual Enmvironment
+          
+          - [ESPWebTool Flasher](https://esptool.spacehuhn.com/):
+          
+          ````bash
+          - Put in Bootloader. Choose the USB/JTAG port.
+          - ERASE button first.
+          - Let it only:
+            - 0x0 bootloader.bin
+            - 0x8000 partition-table.bin
+            - 0x10000 micropython.bin
+            - Press PROGRAM after done, press RST button or Unplug the Board.
+          ````
+          
+        draft: false
+        prerelease: false
+        files: ./artifacts/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
