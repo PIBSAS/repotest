@@ -106,8 +106,8 @@ jobs:
         cat > $GITHUB_WORKSPACE/partitions-huge.csv << 'EOF'
         # Name,   Type, SubType, Offset,  Size, Flags
         nvs,      data, nvs,     0x9000,  0x5000,
-        app0,     app,  factory,   0x10000, 0x3F0000,
-        vfs,   data, spiffs,  0x400000,0x100000,
+        app0,     app,  factory, 0x10000, 0x3F0000,
+        vfs,      data, fat,     0x400000,0x100000,
         EOF
     
     - name: Compile MicroPython with S3LCD + SmartConfig
