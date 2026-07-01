@@ -22,7 +22,7 @@ jobs:
       uses: actions/checkout@v7
       
     - name: Clonar Micropython
-      run: git clone -depth 1 --recursive https://github.com/micropython/micropython.git
+      run: git clone --depth 1 --recursive https://github.com/micropython/micropython.git
     
     - name: Install yq
       run: sudo apt-get update && sudo apt-get install -y yq
