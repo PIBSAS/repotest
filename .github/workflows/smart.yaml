@@ -117,9 +117,22 @@ jobs:
         cat $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiBplus.csv
 
     - name: Patch csv
+      if: false
       run: |
         sed -i 's|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=.*|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-16MiBplus.csv"|' $GITHUB_WORKSPACE/micropython/ports/esp32/boards/sdkconfig.base
+
+    - name: Modify sdkconfig.base for 16MB flash
+      run: |
+        # Cambiar la configuración de flash a 16MB
+        sed -i 's/CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y/CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y/' $GITHUB_WORKSPACE/micropython/ports/esp32/boards/sdkconfig.base
         
+        # Cambiar la tabla de particiones a tu versión de 16MB
+        sed -i 's/CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-4MiBplus.csv"/CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-16MiBplus.csv"/' $GITHUB_WORKSPACE/micropython/ports/esp32/boards/sdkconfig.base
+        
+        # Verificar los cambios
+        echo "📋 sdkconfig.base modificado:"
+        grep -E "CONFIG_ESPTOOLPY_FLASHSIZE|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME" $GITHUB_WORKSPACE/micropython/ports/esp32/boards/sdkconfig.base
+    
     - name: Compile MicroPython with S3LCD + SmartConfig
       run: |
         source esp-idf/export.sh
