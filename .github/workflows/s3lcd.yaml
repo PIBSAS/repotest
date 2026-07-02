@@ -19,7 +19,7 @@ jobs:
     - name: Clone this repo
       uses: actions/checkout@v7
       
-    - name: Clone Micropython now with smartconfig thanks to Walkline80
+    - name: Clone Micropython
       run: git clone --depth 1 --recursive https://github.com/micropython/micropython.git
 
     - name: Install yq
@@ -96,6 +96,7 @@ jobs:
         cp "$GITHUB_WORKSPACE/ESP32_GENERIC_S3_N16R8/partitions-16MiB.csv" "$GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiB.csv"
     
     - name: Crear partitions-16MiBplus.csv personalizado
+      if: false
       run: |
         cat > $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiBplus.csv << 'EOF'
         # Name,   Type, SubType, Offset,  Size, Flags
@@ -106,11 +107,13 @@ jobs:
         EOF
     
     - name: Debug partition table
+      if: false
       run: |
         echo "===== partitions-16MiBplus.csv ====="
         cat $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiBplus.csv
 
     - name: Modify sdkconfig.base for 16MB flash
+      if: false
       run: |
         # Cambiar la configuración de flash a 16MB
         sed -i 's/CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y/CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y/' $GITHUB_WORKSPACE/micropython/ports/esp32/boards/sdkconfig.base
@@ -146,7 +149,7 @@ jobs:
       id: tag
       run: echo "TAG_NAME=release-$(date +'%Y%m%d-%H%M')" >> $GITHUB_ENV
 
-    - name: Verificar existencia de los tres binarios
+    - name: Verificar existencia de los cuatro binarios
       run: |
         if [ ! -f ./artifacts/firmware.bin ] || [ ! -f ./artifacts/micropython.bin ] || [ ! -f ./artifacts/bootloader.bin ] || [ ! -f ./artifacts/partition-table.bin ]; then
           echo "Falta uno o más archivos binarios necesarios, cancelando release."
@@ -162,7 +165,9 @@ jobs:
           
           ## What we get here:
           - MicroPython with S3LCD Display Driver and SmartConfig module:
-            - ```micropython.bin, bootloader.bin and partition-table.bin.```
+            - ```firmware.bin, micropython.bin, bootloader.bin and partition-table.bin.```
+            `firmware`has `micropython.bin + bootloader.bin + partition-table.bin` in just one file.
+            
           # Instructions
             You need to have some dependencies pre-instaled in your OS:
             - Python 3
@@ -171,47 +176,67 @@ jobs:
           
           ## Windows or Linux:
           Create Virtual Environment
-          ```bash
+          
+          ```powershell
           python -m venv esp-env
           ```
           
           ### On Windows activate Virtual Environment this way:
-          ```bash
+          
+          ```powershell
           .\esp-env\Scripts\activate
           ```
+          
           ### On Linux activate Virtual Environment this way:
+          
           ```bash
           source esp-env/bin/activate
           ```
           
           ### On Windows or Linux install esptool:
-          ```bash
+          
+          ```python
           pip install esptool
           ```
           
           ### Put T-Display-S3 in BOOTLOADER MODE:
           - With USB cable on USB COM Port, press BOOT button then RST button, release RST, then release BOOT button. Or unplug, press BOOT button meanwhile you plug in the usb cable to PC or SBC like a Raspberry Pi.
           - Alternative: Use Thonny IDE, plug your T-Display-S3, on Thonny Shell type:
-          ```bash
+          
+          ```python
           from machine import bootloader
           ```
+          
           Press ``Enter`` then type:
-          ```bash
+          
+          ```python
           bootloader()
           ```
+          
           Press ``Enter`` then just cose Thonny and go to Terminal with Virtual Environment activate.
           
           ### Erase Flash:
-          ```bash
-          python -m esptool --chip esp32s3 erase-flash
+          
+          ```python
+          python -m esptool erase-flash
           ```
+          
           ### Then Flash:
           - Put 3 binaries in the same folder you are executing the steps, example Downloads folder, you need to be in that folder where are the binaries.
-          ```bash
-          python -m esptool --chip esp32s3 -b 460800 --before default-reset --after no-reset write-flash --flash-mode dio --flash-size 16MB --flash-freq 80m 0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 micropython.bin
+          
+          ```python
+          python -m esptool write-flash 0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 micropython.bin
           ```
+
+          - Or `firmware.bin`:
+
+          ```python
+          python -m esptoll write-flash 0x0 firmware.bin
+          ```
+
           ### You can check from MicroPython Shell on Thonny with:
-          ```bash
+          
+          ```python
           help('modules')
           ```
           The modules in MicroPython.
@@ -219,15 +244,16 @@ jobs:
           ### NOTE IN WINDOWS:
           - If you get a PowerShell Scripts Policy Execution Exception that don't let you activate the Virtual Environment:
           
-           ````bash
+           ```powershell
           .\esp-env\Scripts\activate
           ````
           
           - Then open a Terminal like Administrator and type:
           
-          ````bash
+          ```powershell
           Set-ExecutionPolicy Unrestricted
-          ````
+          ```
+          
           - Close the Terminal now you can activate the Python Virtual Enmvironment
           
           - [ESPWebTool Flasher](https://esptool.spacehuhn.com/):
