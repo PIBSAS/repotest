@@ -101,7 +101,7 @@ jobs:
       run: |
         cp "$GITHUB_WORKSPACE/ESP32_GENERIC_S3_N16R8/partitions-16MiB.csv" "$GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiB.csv"
 
-    - name: Crear partitions-4MiBplus.csv personalizado
+    - name: Crear partitions-16MiBplus.csv personalizado
       run: |
         cat > $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiBplus.csv << 'EOF'
         # Name,   Type, SubType, Offset,  Size, Flags
@@ -113,7 +113,7 @@ jobs:
 
     - name: Debug partition table
       run: |
-        echo "===== partitions-4MiBplus.csv ====="
+        echo "===== partitions-16MiBplus.csv ====="
         cat $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiBplus.csv
         
     - name: Compile MicroPython with S3LCD + SmartConfig
@@ -124,8 +124,8 @@ jobs:
         make -j$(nproc) -C ports/esp32 submodules
         cd ports/esp32/
         sed -i \
-        's|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=.*|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="-16MiBplus.csv"|' \
-        micropython/ports/esp32/boards/sdkconfig.base
+        's|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=.*|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-16MiBplus.csv"|' \
+        boards/sdkconfig.base
         ls -l $GITHUB_WORKSPACE/micropython/ports/esp32/boards/
         make -j$(nproc) BOARD=ESP32_GENERIC_S3 BOARD_VARIANT=SPIRAM_OCT \
           USER_C_MODULES="$GITHUB_WORKSPACE/micropython.cmake" \
