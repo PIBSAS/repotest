@@ -109,7 +109,11 @@ jobs:
       run: |
         echo "===== partitions-16MiBplus.csv ====="
         cat $GITHUB_WORKSPACE/micropython/ports/esp32/partitions-16MiBplus.csv
-        
+
+    - name: Parche
+      run: |
+        sed -i 's|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=.*|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-16MiBplus.csv"|' $GITHUB_WORKSPACE/micropython/ports/esp32/boards/sdkconfig.base
+      
     - name: Compile MicroPython with S3LCD + SmartConfig
       run: |
         source esp-idf/export.sh
@@ -117,10 +121,6 @@ jobs:
         make -j$(nproc) -C mpy-cross
         make -j$(nproc) -C ports/esp32 submodules
         cd ports/esp32/
-        sed -i \
-        's|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=.*|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-16MiBplus.csv"|' \
-        boards/sdkconfig.base
-        ls -l $GITHUB_WORKSPACE/micropython/ports/esp32/boards/
         make -j$(nproc) BOARD=ESP32_GENERIC_S3 BOARD_VARIANT=SPIRAM_OCT \
           USER_C_MODULES="$GITHUB_WORKSPACE/micropython2.cmake" \
           FROZEN_MANIFEST="$GITHUB_WORKSPACE/s3lcd/manifest.py"
